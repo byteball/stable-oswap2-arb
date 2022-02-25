@@ -10,6 +10,7 @@ const aa_composer = require("ocore/aa_composer.js");
 const storage = require("ocore/storage.js");
 const db = require("ocore/db.js");
 const constants = require("ocore/constants.js");
+const light_wallet = require("ocore/light_wallet.js");
 
 const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
@@ -476,6 +477,8 @@ async function startWatching() {
 	await watchForNewBuffers();
 
 	await watchV1Arbs();
+
+	await light_wallet.waitUntilFirstHistoryReceived();
 
 	await swapStable();
 	setInterval(swapStable, 12 * 3600 * 1000);

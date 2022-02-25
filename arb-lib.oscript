@@ -1,0 +1,78 @@
+{
+	getters: `{
+
+		$get_oracles = ($oracles_state, $curve_params) => {
+		//	$oracles_state = var[$curve_aa]['oracles'];
+			if ($oracles_state)
+				return $oracles_state;
+			$initial_oracles = [];
+			if ($curve_params.oracle1 AND $curve_params.feed_name1)
+				$initial_oracles[] = {oracle: $curve_params.oracle1, feed_name: $curve_params.feed_name1, op: $curve_params.op1 OTHERWISE '*'};
+			if ($curve_params.oracle2 AND $curve_params.feed_name2)
+				$initial_oracles[] = {oracle: $curve_params.oracle2, feed_name: $curve_params.feed_name2, op: $curve_params.op2 OTHERWISE '*'};
+			if ($curve_params.oracle3 AND $curve_params.feed_name3)
+				$initial_oracles[] = {oracle: $curve_params.oracle3, feed_name: $curve_params.feed_name3, op: $curve_params.op3 OTHERWISE '*'};
+			$initial_oracles
+		};
+
+		$get_oracle_price = ($oracles_state, $curve_params) => {
+			$oracles = $get_oracles($oracles_state, $curve_params);
+			$oracle_price = reduce($oracles, 3, ($price, $oracle_info) => {
+				if (!exists($price))
+					return false;
+				$df = data_feed[[oracles=$oracle_info.oracle, feed_name=$oracle_info.feed_name, ifnone=false]];
+				if (!exists($df))
+					return false;
+				($oracle_info.op == '*') ? $price * $df : $price / $df
+			}, 1);
+			$oracle_price
+		};
+
+		$get_denoms = ($stable_balances, $reserve_balances, $stable_l_balances, $reserve_l_balances, $shifts, $pxy_stable, $pxy_reserve, $stable_oswap_x_is_imported, $reserve_oswap_x_is_reserve, $stable_alpha, $reserve_alpha) => {
+			
+			$leverages = [2, 5, 10, 20, 50, 100];
+
+			$p_stable_in_imported = !$stable_oswap_x_is_imported ? $pxy_stable : 1/$pxy_stable;
+
+			// account for leveraged positions
+			$L_sums = {stable_x: 0, reserve_x: 0};
+			foreach($leverages, 6, $L => {
+				$L_sums.stable_x = $L_sums.stable_x + ($L - 1) * ($stable_l_balances[$L||'x'].balance + $stable_l_balances[-$L||'x'].balance / $pxy_stable);
+				$L_sums.reserve_x = $L_sums.reserve_x + ($L - 1) * ($reserve_l_balances[$L||'x'].balance + $reserve_l_balances[-$L||'x'].balance / $pxy_reserve);
+			});
+
+			// stable oswap
+			$stable_a = $stable_oswap_x_is_imported ? $stable_alpha : 1-$stable_alpha;
+			$stable_s = $stable_balances[$stable_oswap_x_is_imported ? 'y' : 'x'];
+			$stable_s0 = $shifts[$stable_oswap_x_is_imported ? 'y0' : 'x0'];
+			$stable_sum = $stable_oswap_x_is_imported ? $L_sums.stable_x/$p_stable_in_imported : $L_sums.stable_x;
+			$stable_denom = $stable_a * ($stable_s + $stable_s0) - $stable_sum;
+
+			// reserve oswap
+			$reserve_a = $reserve_oswap_x_is_reserve ? $reserve_alpha : 1-$reserve_alpha;
+			$reserve_b = 1 - $reserve_a;
+			$reserve_r = $reserve_balances[$reserve_oswap_x_is_reserve ? 'x' : 'y']; // not xn, yn
+			$reserve_sum = $reserve_oswap_x_is_reserve ? $L_sums.reserve_x : $L_sums.reserve_x * $pxy_reserve;
+			$reserve_denom = $reserve_b * $reserve_r - $reserve_sum;
+		//	$along_reserve_asset = $reserve_oswap_x_is_reserve ? $along_x : !$along_x;
+		//	$Lambda_term = $along_reserve_asset ? $reserve_b * $Lambda : 
+
+		//	log({stable_sum: $stable_sum, stable_denom: $stable_denom, reserve_sum: $reserve_sum, reserve_denom: $reserve_denom});
+
+			{
+				stable_denom: $stable_denom,
+				reserve_denom: $reserve_denom,
+				reserve_b: $reserve_b,
+				stable_a: $stable_a,
+			}
+		};
+	}`,
+	messages: [{
+		app: 'state',
+		state: `{
+			$d = $get_denoms();
+			bounce("library only");
+		}`
+	}]
+
+}

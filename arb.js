@@ -28,7 +28,7 @@ let oswapAAsByArb = {};
 
 let curvesByArb = {};
 let yAssetInfosByArb = {}; // for v1-v2
-let assetsByArb = {}; // for v1-v2
+let arbInfo = {}; // for v1-v2
 
 let oswap_aas = {};
 
@@ -107,8 +107,8 @@ async function estimateAndArb(arb_aa) {
 	let upcomingStateVars = _.cloneDeep(aa_state.getUpcomingStateVars());
 	let upcomingBalances = _.cloneDeep(aa_state.getUpcomingBalances());
 	if (!curve_aa) {
-		const { x_asset, y_asset } = assetsByArb[arb_aa];
-		for (let oswap_aa of oswapAAsByArb[arb_aa]) {
+		const { x_asset, y_asset, oswaps } = arbInfo[arb_aa];
+		for (let oswap_aa of oswaps) {
 			const balances = upcomingBalances[oswap_aa];
 			if (!balances[x_asset] || !balances[y_asset]) {
 				console.log(`arb ${arb_aa}: oswap ${oswap_aa} zero balance`, balances);
@@ -404,7 +404,7 @@ async function addArb(arb_aa) {
 			v1v2ArbsByAAs[oswap_v2_aa] = arb_aa;
 			oswapAAsByArb[arb_aa] = [oswap_v2_aa];
 			const { x_asset, y_asset } = await dag.readAAParams(oswap_v2_aa);
-			assetsByArb[arb_aa] = { x_asset, y_asset };
+			arbInfo[arb_aa] = { x_asset, y_asset, oswaps: [oswap_v1_aa, oswap_v2_aa] };
 			yAssetInfosByArb[arb_aa] = await getAssetInfo(y_asset);
 		}
 	}

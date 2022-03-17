@@ -494,10 +494,10 @@ async function startWatching() {
 	await light_wallet.waitUntilFirstHistoryReceived();
 
 	await swapStable();
-	setInterval(swapStable, 12 * 3600 * 1000);
+	setInterval(swapStable, 4 * 3600 * 1000);
 	setTimeout(() => {
 		swapImported();
-		setInterval(swapImported, 12 * 3600 * 1000);
+		setInterval(swapImported, 4 * 3600 * 1000);
 	}, 3600 * 1000);
 
 	setTimeout(estimateAndArbAll, 1000);

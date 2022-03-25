@@ -106,8 +106,14 @@ async function estimateAndArb(arb_aa) {
 	const aa_unlock = await aa_state.lock();
 	let upcomingStateVars = _.cloneDeep(aa_state.getUpcomingStateVars());
 	let upcomingBalances = _.cloneDeep(aa_state.getUpcomingBalances());
+	const arb_balances = upcomingBalances[arb_aa];
 	if (!curve_aa) {
 		const { x_asset, y_asset, oswaps } = arbInfo[arb_aa];
+		if (!arb_balances[x_asset] || !arb_balances[y_asset]) {
+			console.log(`arb ${arb_aa} zero balance`, arb_balances);
+			aa_unlock();
+			return finish();
+		}
 		for (let oswap_aa of oswaps) {
 			const balances = upcomingBalances[oswap_aa];
 			if (!balances[x_asset] || !balances[y_asset]) {
@@ -115,6 +121,13 @@ async function estimateAndArb(arb_aa) {
 				aa_unlock();
 				return finish();
 			}
+		}
+	}
+	else {
+		if (!arb_balances.base) {
+			console.log(`arb ${arb_aa} zero GBYTE balance`, arb_balances);
+			aa_unlock();
+			return finish();
 		}
 	}
 	const state = sha256(JSON.stringify([upcomingStateVars, upcomingBalances]));

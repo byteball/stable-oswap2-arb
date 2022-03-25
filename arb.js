@@ -317,16 +317,18 @@ async function onAARequest(objAARequest, arrResponses) {
 }
 
 function getAffectedArbs(aas) {
-	let arbs = [];
+	let affected_arbs = [];
 	for (let aa of aas) {
-		let arb = ostableArbsByAAs[aa];
-		if (arb && !arbs.includes(arb))
-			arbs.push(arb);
-		arb = v1v2ArbsByAAs[aa];
-		if (arb && !arbs.includes(arb))
-			arbs.push(arb);
+		let arbs = ostableArbsByAAs[aa];
+		if (arbs)
+			for (let arb of arbs)
+				affected_arbs.push(arb);
+		arbs = v1v2ArbsByAAs[aa];
+		if (arbs)
+			for (let arb of arbs)
+				affected_arbs.push(arb);
 	}
-	return arbs;
+	return _.uniq(affected_arbs);
 }
 
 async function initArbList() {
@@ -349,6 +351,12 @@ async function initArbList() {
 	console.log('all arb AAs', arb_aas);
 }
 
+function add(obj, key, el) {
+	if (!obj[key])
+		obj[key] = [];
+	obj[key].push(el);
+}
+
 async function addArb(arb_aa) {
 	console.log(`adding arb ${arb_aa}`);
 	await aa_state.followAA(arb_aa);
@@ -368,10 +376,10 @@ async function addArb(arb_aa) {
 		await aa_state.followAA(fund_aa);
 		await aa_state.followAA(governance_aa);
 
-		if (my_arb_aas.includes(arb_aa)) {
-			ostableArbsByAAs[curve_aa] = arb_aa;
-			ostableArbsByAAs[stable_oswap_aa] = arb_aa;
-			ostableArbsByAAs[reserve_oswap_aa] = arb_aa;
+		if (my_arb_aas.includes(arb_aa) && arb_aa.startsWith('22')) {
+			add(ostableArbsByAAs, curve_aa, arb_aa);
+			add(ostableArbsByAAs, stable_oswap_aa, arb_aa);
+			add(ostableArbsByAAs, reserve_oswap_aa, arb_aa);
 			curvesByArb[arb_aa] = curve_aa;
 			oswapAAsByArb[arb_aa] = [stable_oswap_aa, reserve_oswap_aa];
 		}
@@ -399,9 +407,9 @@ async function addArb(arb_aa) {
 		const { factory } = await dag.readAAParams(oswap_v1_aa);
 		await aa_state.followAA(factory);
 	
-		if (my_arb_aas.includes(arb_aa)) {
-			v1v2ArbsByAAs[oswap_v1_aa] = arb_aa;
-			v1v2ArbsByAAs[oswap_v2_aa] = arb_aa;
+		if (my_arb_aas.includes(arb_aa) && arb_aa.startsWith('22')) {
+			add(v1v2ArbsByAAs, oswap_v1_aa, arb_aa);
+			add(v1v2ArbsByAAs, oswap_v2_aa, arb_aa);
 			oswapAAsByArb[arb_aa] = [oswap_v2_aa];
 			const { x_asset, y_asset } = await dag.readAAParams(oswap_v2_aa);
 			arbInfo[arb_aa] = { x_asset, y_asset, oswaps: [oswap_v1_aa, oswap_v2_aa] };

@@ -357,7 +357,7 @@ async function initArbList() {
 	my_arb_aas = [];
 	for (let { address, definition } of rows) {
 		arb_aas.push(address);
-		if (definition[1].params.owner === conf.owner)
+		if (definition[1].params.owner === conf.owner && address.startsWith('22'))
 			my_arb_aas.push(address);
 	}
 	console.log('my arb AAs', my_arb_aas);
@@ -389,7 +389,7 @@ async function addArb(arb_aa) {
 		await aa_state.followAA(fund_aa);
 		await aa_state.followAA(governance_aa);
 
-		if (my_arb_aas.includes(arb_aa) && arb_aa.startsWith('22')) {
+		if (my_arb_aas.includes(arb_aa)) {
 			add(ostableArbsByAAs, curve_aa, arb_aa);
 			add(ostableArbsByAAs, stable_oswap_aa, arb_aa);
 			add(ostableArbsByAAs, reserve_oswap_aa, arb_aa);
@@ -420,7 +420,7 @@ async function addArb(arb_aa) {
 		const { factory } = await dag.readAAParams(oswap_v1_aa);
 		await aa_state.followAA(factory);
 	
-		if (my_arb_aas.includes(arb_aa) && arb_aa.startsWith('22')) {
+		if (my_arb_aas.includes(arb_aa)) {
 			add(v1v2ArbsByAAs, oswap_v1_aa, arb_aa);
 			add(v1v2ArbsByAAs, oswap_v2_aa, arb_aa);
 			oswapAAsByArb[arb_aa] = [oswap_v2_aa];

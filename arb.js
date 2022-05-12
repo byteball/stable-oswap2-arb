@@ -16,6 +16,7 @@ const dag = require('aabot/dag.js');
 const operator = require('aabot/operator.js');
 const aa_state = require('aabot/aa_state.js');
 const CurveAA = require('./curve.js');
+const xmutex = require("./xmutex");
 
 const arb_base_aas = conf.ostable_arb_base_aas.concat(conf.v1v2_arb_base_aas);
 
@@ -76,7 +77,13 @@ async function queueEstimateAndArb(arb_aa) {
 		return console.log(`arb ${arb_aa} already busy or queued`);
 	busyArbs[arb_aa] = true;
 	console.log(`arb ${arb_aa} added to busy`);
+	await estimateAndArbUnderArbLock(arb_aa);
+}
+
+async function estimateAndArbUnderArbLock(arb_aa) {
+	await xmutex.lock();
 	await estimateAndArb(arb_aa);
+	await xmutex.unlock();
 }
 
 async function estimateAndArb(arb_aa) {
@@ -86,7 +93,7 @@ async function estimateAndArb(arb_aa) {
 	console.log('===== estimateAndArb arb ' + arb_aa + ' on curve ' + curve_aa);
 	const timeout = getWaitTimeTillNextArb(arb_aa);
 	if (timeout > 0) {
-		setTimeout(() => estimateAndArb(arb_aa), timeout + 10);
+		setTimeout(() => estimateAndArbUnderArbLock(arb_aa), timeout + 10);
 		return unlock(`too fast after the previous arb, will estimate again in ${timeout}ms`);
 	}
 
@@ -209,6 +216,7 @@ async function estimateAndArb(arb_aa) {
 }
 
 async function swapStable() {
+	await xmutex.lock();
 	console.log('swapStable');
 	for (let arb_aa of my_arb_aas) {
 		const curve_aa = curvesByArb[arb_aa];
@@ -231,9 +239,11 @@ async function swapStable() {
 			console.log(`stable balance of arb ${arb_aa} is too small`);
 	}
 	console.log('swapStable done');
+	await xmutex.unlock();
 }
 
 async function swapImported() {
+	await xmutex.lock();
 	console.log('swapImported');
 	for (let arb_aa of my_arb_aas) {
 		const curve_aa = curvesByArb[arb_aa];
@@ -258,6 +268,7 @@ async function swapImported() {
 			console.log(`imported balance of arb ${arb_aa} is too small`);
 	}
 	console.log('swapImported done');
+	await xmutex.unlock();
 }
 
 let assetInfos = {};

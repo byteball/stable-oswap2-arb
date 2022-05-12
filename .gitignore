@@ -51,4 +51,6 @@ Session.vim
 *.iml
 .idea
 
+.vscode
+
 .testdata-*

@@ -11,7 +11,8 @@
     "node": ">=8"
   },
   "dependencies": {
-    "aabot": "git+https://github.com/byteball/aabot.git"
+    "aabot": "git+https://github.com/byteball/aabot.git",
+		"fs-ext": "^2.0.0"
   },
   "devDependencies": {
     "aa-testkit": "git+https://github.com/valyakin/aa-testkit.git",

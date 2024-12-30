@@ -162,26 +162,7 @@ async function estimateAndArb(arb_aa) {
 	const share = conf[curve_aa ? 'oswap_arb_share' : 'v1v2_arb_share'];
 	if (share && share !== 1)
 		payload.share = share;
-	let objUnit = {
-		unit: 'dummy_trigger_unit',
-		authors: [{ address: operator.getAddress() }],
-		messages: [
-			{
-				app: 'payment',
-				payload: {
-					outputs: [{ address: arb_aa, amount: 1e4 }]
-				}
-			},
-			{
-				app: 'data',
-				payload
-			},
-		],
-		timestamp: Math.round(Date.now() / 1000),
-	};
-	const start_ts = Date.now();
-	let arrResponses = await aa_composer.estimatePrimaryAATrigger(objUnit, arb_aa, upcomingStateVars, upcomingBalances);
-	console.log(`--- estimated responses to simulated arb request in ${Date.now() - start_ts}ms`, JSON.stringify(arrResponses, null, 2));
+	let arrResponses = await estimateRequest(arb_aa, payload, upcomingStateVars, upcomingBalances);
 	aa_unlock();
 	if (arrResponses[0].bounced)
 		return finish(`${arb_aa}/${curve_aa} would bounce: ` + arrResponses[0].response.error);
@@ -221,6 +202,42 @@ async function estimateAndArb(arb_aa) {
 	finish();
 }
 
+async function estimateRequest(aa, payload, upcomingStateVars, upcomingBalances) {
+	let objUnit = {
+		unit: 'dummy_trigger_unit',
+		authors: [{ address: operator.getAddress() }],
+		messages: [
+			{
+				app: 'payment',
+				payload: {
+					outputs: [{ address: aa, amount: 1e4 }]
+				}
+			},
+			{
+				app: 'data',
+				payload
+			},
+		],
+		timestamp: Math.round(Date.now() / 1000),
+	};
+	const start_ts = Date.now();
+	let arrResponses = await aa_composer.estimatePrimaryAATrigger(objUnit, aa, upcomingStateVars, upcomingBalances);
+	console.log(`--- estimated responses to simulated request ${JSON.stringify(payload)} to ${aa} in ${Date.now() - start_ts}ms`, JSON.stringify(arrResponses, null, 2));
+	return arrResponses;
+}
+
+async function checkRequestWouldSucceed(aa, payload) {
+	const aa_unlock = await aa_state.lock();
+	let upcomingStateVars = _.cloneDeep(aa_state.getUpcomingStateVars());
+	let upcomingBalances = _.cloneDeep(aa_state.getUpcomingBalances());
+	let arrResponses = await estimateRequest(aa, payload, upcomingStateVars, upcomingBalances);
+	aa_unlock();
+	const { bounced } = arrResponses[0];
+	if (bounced)
+		console.log(`request ${JSON.stringify(payload)} to ${aa} would bounce with error`, arrResponses[0].response.error);
+	return !bounced;
+}
+
 async function swapStable() {
 	await xmutex.lock();
 	console.log('swapStable');
@@ -237,9 +254,11 @@ async function swapStable() {
 		const usd_balance = balance / 10 ** decimals2 * rate;
 		console.log(`stable balance of ${arb_aa} is ${balance} or $${usd_balance}`);
 		if (usd_balance > 1) {
-			const unit = await dag.sendAARequest(arb_aa, { swap_stable: 1 });
-			console.log(`sent request to swap stable in arb ${arb_aa}: ${unit}`);
-			lastArbTs[stable_oswap_aa] = Date.now();
+			if (await checkRequestWouldSucceed(arb_aa, { swap_stable: 1 })) {
+				const unit = await dag.sendAARequest(arb_aa, { swap_stable: 1 });
+				console.log(`sent request to swap stable in arb ${arb_aa}: ${unit}`);
+				lastArbTs[stable_oswap_aa] = Date.now();
+			}
 		}
 		else
 			console.log(`stable balance of arb ${arb_aa} is too small`);
@@ -266,9 +285,11 @@ async function swapImported() {
 		const usd_balance = balance / 10 ** decimals * rate;
 		console.log(`imported balance of ${arb_aa} is ${balance} or $${usd_balance}`);
 		if (usd_balance > 1) {
-			const unit = await dag.sendAARequest(arb_aa, { swap_imported: 1 });
-			console.log(`sent request to swap imported in arb ${arb_aa}: ${unit}`);
-			lastArbTs[reserve_oswap_aa] = Date.now();
+			if (await checkRequestWouldSucceed(arb_aa, { swap_imported: 1 })) {
+				const unit = await dag.sendAARequest(arb_aa, { swap_imported: 1 });
+				console.log(`sent request to swap imported in arb ${arb_aa}: ${unit}`);
+				lastArbTs[reserve_oswap_aa] = Date.now();
+			}
 		}
 		else
 			console.log(`imported balance of arb ${arb_aa} is too small`);
